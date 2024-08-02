@@ -1,14 +1,14 @@
 /* Global styles */
 body {
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Courier New', monospace;
   margin: 0;
   padding: 0;
-  background-color: #f5f5f5;
+  background-color: #f0f4f8; /* Soft pastel blue */
   color: #333;
 }
 
 h1 {
-  color: #007bff;
+  color: #4a90e2; /* Soft pastel blue */
   text-align: center;
   margin-top: 20px;
 }
@@ -17,21 +17,59 @@ h1 {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-  background: white;
+  background: #ffffff;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   margin-top: 40px;
 }
 
+.chat-window {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f7f9fc; /* Light pastel */
+  border: 1px solid #dde1e4;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-family: 'Courier New', monospace;
+}
+
+.message {
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
+.message.system {
+  color: #4a90e2; /* Soft pastel blue */
+}
+
+.message.user {
+  color: #ff9f43; /* Soft pastel peach */
+  text-align: right;
+}
+
+.input-line {
+  display: flex;
+  align-items: center;
+}
+
+.cursor {
+  color: #333;
+  font-weight: bold;
+}
+
 textarea {
   width: 100%;
-  padding: 10px;
+  padding: 5px;
   margin-top: 10px;
   margin-bottom: 20px;
-  border: 1px solid #ddd;
+  border: 1px solid #dde1e4;
   border-radius: 4px;
   font-size: 16px;
   font-family: inherit;
+  background-color: #f7f9fc; /* Light pastel */
+  resize: none;
+  overflow: hidden;
 }
 
 label {
@@ -39,7 +77,7 @@ label {
   margin-top: 20px;
   margin-bottom: 5px;
   font-weight: bold;
-  color: #555;
+  color: #4a90e2; /* Soft pastel blue */
 }
 
 input[type="range"] {
@@ -51,7 +89,7 @@ button {
   display: block;
   width: 100%;
   padding: 10px;
-  background-color: #007bff;
+  background-color: #7db7f1; /* Soft pastel blue */
   color: white;
   border: none;
   border-radius: 4px;
@@ -61,11 +99,11 @@ button {
 }
 
 button:disabled {
-  background-color: #ccc;
+  background-color: #b0cfee;
 }
 
 button:hover:enabled {
-  background-color: #0056b3;
+  background-color: #5695e3; /* Slightly darker pastel blue */
 }
 
 .spinner-container {
@@ -78,21 +116,4 @@ button:hover:enabled {
   color: red;
   text-align: center;
   margin-top: 10px;
-}
-
-.response {
-  margin-top: 40px;
-  padding: 20px;
-  background: #e9ecef;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.response h2 {
-  color: #007bff;
-  margin-top: 0;
-}
-
-.response p {
-  white-space: pre-wrap; /* Preserve line breaks and spaces */
 }

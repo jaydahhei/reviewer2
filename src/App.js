@@ -5,7 +5,9 @@ import './App.css';
 
 const App = () => {
   const [abstract, setAbstract] = useState('');
-  const [response, setResponse] = useState('');
+  const [messages, setMessages] = useState([
+    { role: 'system', content: '' }
+  ]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [temperature, setTemperature] = useState(0.7);
@@ -43,6 +45,28 @@ const App = () => {
     setTokenCount(storedTokenCount);
   }, []);
 
+  useEffect(() => {
+    const initialMessage = 'Reviewer #2: Ugh, fine, show me your abstract.';
+    typeMessage(initialMessage, 'system');
+  }, []);
+
+  const typeMessage = (message, role) => {
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < message.length) {
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const currentMessage = newMessages[newMessages.length - 1];
+          currentMessage.content = message.slice(0, index + 1);
+          return newMessages;
+        });
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 50); // Typing speed
+  };
+
   const handleAbstractChange = (event) => {
     setAbstract(event.target.value);
   };
@@ -64,9 +88,13 @@ const App = () => {
 
     setLoading(true);
     try {
+      setMessages(prev => [
+        ...prev,
+        { role: 'user', content: abstract }
+      ]);
       const res = await together.chat.completions.create({
         messages: [
-          { role: 'system', content: 'You are Reviewer #2, known for giving harsh and rude feedback.' },
+          ...messages,
           { role: 'user', content: abstract }
         ],
         model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
@@ -76,7 +104,6 @@ const App = () => {
       const responseText = res.choices[0].message.content;
       const tokensUsed = responseText.split(' ').length; // Estimate token count
 
-      setResponse(responseText);
       setTokenCount(prev => {
         const newTokenCount = prev + tokensUsed;
         localStorage.setItem('tokenCount', newTokenCount);
@@ -90,6 +117,7 @@ const App = () => {
       });
 
       setError('');
+      typeMessage(responseText, 'system');
     } catch (err) {
       console.error('Error fetching response:', err);
       setError('There was an error processing your request.');
@@ -100,14 +128,24 @@ const App = () => {
 
   return (
     <div className="container">
-      <h1>Submit Your Abstract</h1>
-      <textarea
-        value={abstract}
-        onChange={handleAbstractChange}
-        placeholder="Enter your abstract here"
-        rows="10"
-        cols="50"
-      />
+      <h1>Chat with Reviewer #2</h1>
+      <div className="chat-window">
+        {messages.map((message, index) => (
+          <div key={index} className={`message ${message.role}`}>
+            <p>{message.content}</p>
+          </div>
+        ))}
+        <div className="input-line">
+          <span className="cursor">> </span>
+          <textarea
+            value={abstract}
+            onChange={handleAbstractChange}
+            placeholder="Enter your abstract here"
+            rows="1"
+            cols="50"
+          />
+        </div>
+      </div>
       <label htmlFor="temperature">Temperature: {temperature}</label>
       <input
         id="temperature"
@@ -118,17 +156,13 @@ const App = () => {
         value={temperature}
         onChange={handleTemperatureChange}
       />
-      <button onClick={handleSubmit} disabled={loading}>Submit Abstract</button>
+      <button onClick={handleSubmit} disabled={loading || !abstract.trim()}>Submit Abstract</button>
       {loading && (
         <div className="spinner-container">
           <ClipLoader color="#007bff" />
         </div>
       )}
       {error && <p className="error">{error}</p>}
-      <div className="response">
-        <h2>Response from Reviewer #2</h2>
-        <p>{response}</p>
-      </div>
     </div>
   );
 };
