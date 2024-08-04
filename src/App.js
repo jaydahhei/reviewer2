@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Together from 'together-ai';
 import ClipLoader from 'react-spinners/ClipLoader';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCog } from '@fortawesome/free-solid-svg-icons';
 import './App.css';
 import reviewer2 from './reviewer2.png';
 
@@ -21,6 +23,7 @@ const App = () => {
   const [showInput, setShowInput] = useState(true);
   const [isRebuttal, setIsRebuttal] = useState(false);
   const [triesLeft, setTriesLeft] = useState(3);
+  const [showSettings, setShowSettings] = useState(false);
   const chatWindowRef = useRef(null);
 
   const MAX_MONTHLY_COST = 15; // $15
@@ -94,6 +97,10 @@ const App = () => {
 
   const handleTemperatureChange = (event) => {
     setTemperature(parseFloat(event.target.value));
+  };
+
+  const toggleSettings = () => {
+    setShowSettings(!showSettings);
   };
 
   const handleSubmit = async () => {
@@ -219,12 +226,22 @@ const App = () => {
 
   return (
     <div className="app-container">
-      <div className="counter">
-        <div>{submissionCount} Abstracts read</div>
-        <div className="decision-counts">
-          <div><ThumbsUp size={18} /> {acceptedCount}</div>
-          <div><ThumbsDown size={18} /> {rejectedCount}</div>
-        </div>
+      <div className="settings-container">
+        <FontAwesomeIcon icon={faCog} size="2x" onClick={toggleSettings} />
+        {showSettings && (
+          <div className="temperature-setting">
+            <label htmlFor="temperature">Temperature: {temperature}</label>
+            <input
+              id="temperature"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={temperature}
+              onChange={handleTemperatureChange}
+            />
+          </div>
+        )}
       </div>
       <h1>Chat with Reviewer #2</h1>
       <div className="reviewer-container">
@@ -249,16 +266,6 @@ const App = () => {
           )}
         </div>
       </div>
-      <label htmlFor="temperature">Temperature: {temperature}</label>
-      <input
-        id="temperature"
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        value={temperature}
-        onChange={handleTemperatureChange}
-      />
       {showInput && (
         <button onClick={handleSubmit} disabled={loading || !abstract.trim()}>
           {isRebuttal ? "Submit Rebuttal" : "Submit Abstract"}
@@ -271,8 +278,15 @@ const App = () => {
       )}
       {error && <p className="error">{error}</p>}
       <p className="disclaimer">Disclaimer: This application does not store any user data or submitted abstracts.</p>
+      <div className="counter">
+        <div>{submissionCount} Abstracts read</div>
+        <div className="decision-counts">
+          <div><ThumbsUp size={18} /> {acceptedCount}</div>
+          <div><ThumbsDown size={18} /> {rejectedCount}</div>
+        </div>
+      </div>
     </div>
   );
-};
+}  
 
 export default App;
