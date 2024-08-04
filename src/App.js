@@ -108,17 +108,26 @@ const App = () => {
       setError('Monthly token limit reached. Please try again next month.');
       return;
     }
-
+  
     setLoading(true);
     setShowInput(false);
     try {
+      const internalPrompt = { role: 'system', content: 'You are Reviewer #2, known for giving harsh and rude feedback. You are also known for being exceptionally critical and demanding. You are an angry and bitter scholar exacting revenge on your peers through overly critical anonymous rejections of papers you secretly wish you would have written.' };
+  
       const newMessages = [
-        ...(isRebuttal ? messages : [{ role: 'system', content: 'You are Reviewer #2, known for giving harsh and rude feedback. You are also known for being exceptionally critical and demanding. You are an angry and bitter scholar exacting revenge on your peers through overly critical anonymous rejections of papers you secretly wish you would have written.' }, ...messages]),
+        ...(isRebuttal ? messages : [internalPrompt, ...messages]),
         { role: 'user', content: abstract }
       ];
-      setMessages(newMessages);
+      
+      // Filter out the internal prompt for display purposes
+      const displayMessages = [
+        ...(isRebuttal ? messages : [...messages]),
+        { role: 'user', content: abstract }
+      ];
+  
+      setMessages(displayMessages);
       setAbstract('');
-
+  
       const model = isRebuttal ? 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo' : 'meta-llama/Meta-Llama-3-8B-Instruct-Lite';
       const res = await together.chat.completions.create({
         messages: newMessages,
@@ -126,16 +135,16 @@ const App = () => {
         temperature: temperature,
         max_tokens: MAX_TOKENS_PER_RESPONSE,
       });
-
+  
       const responseText = res.choices[0]?.message?.content || "No response from reviewer";
       const tokensUsed = responseText.split(' ').length;
-
+  
       setTokenCount(prev => {
         const newTokenCount = prev + tokensUsed;
         localStorage.setItem('tokenCount', newTokenCount);
         return newTokenCount;
       });
-
+  
       if (!isRebuttal) {
         setSubmissionCount(prev => {
           const newSubmissionCount = prev + 1;
@@ -144,7 +153,7 @@ const App = () => {
         });
         setIsRebuttal(true); // Start rebuttal process
       }
-
+  
       setError('');
       if (!isRebuttal) {
         typeMessage(responseText, 'system', () => {
@@ -162,7 +171,7 @@ const App = () => {
       setLoading(false);
     }
   };
-
+  
   const handleEditorDecision = async (newMessages) => {
     if (editorDecisionMade) return;
 
