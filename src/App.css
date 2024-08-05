@@ -71,7 +71,7 @@ h1 {
   border-radius: 8px;
   font-family: 'Courier New', monospace;
   text-align: left;
-  max-height: 80vh; /* Limit the height */
+  /* max-height: 80vh; Limit the height */
   overflow-y: auto; /* Allow scrolling if content exceeds the height */
 }
 
@@ -108,11 +108,11 @@ h1 {
 }
 
 .message.system {
-  color: #4a90e2;
+  color: #0474f5;
 }
 
 .message.user {
-  color: #ff9f43;
+  color: #e07919;
 }
 
 .input-line {

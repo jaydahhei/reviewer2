@@ -29,7 +29,8 @@ const App = () => {
   const MAX_MONTHLY_COST = 15; // $15
   const COST_PER_MILLION_TOKENS = 0.88; // $0.88 per million tokens
   const MAX_MONTHLY_TOKENS = (MAX_MONTHLY_COST / COST_PER_MILLION_TOKENS) * 1_000_000; // Convert to tokens
-  const MAX_TOKENS_PER_RESPONSE = 300; // Limit the tokens per response
+  const MAX_TOKENS_PER_RESPONSE = 300; // Increased limit for longer responses
+  const MAX_TOKENS_PER_INPUT = 500; // Limit the user input to 500 tokens
 
   const apiKey = process.env.REACT_APP_TOGETHER_API_KEY;
 
@@ -71,24 +72,11 @@ const App = () => {
   }, [messages]);
 
   const typeMessage = (message, role, callback) => {
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index < message.length) {
-        setMessages(prev => {
-          const newMessages = [...prev];
-          if (newMessages[newMessages.length - 1].role !== role) {
-            newMessages.push({ role, content: '' });
-          }
-          const currentMessage = newMessages[newMessages.length - 1];
-          currentMessage.content = message.slice(0, index + 1);
-          return newMessages;
-        });
-        index += 5;
-      } else {
-        clearInterval(interval);
-        if (callback) callback();
-      }
-    }, 10);
+    setMessages(prev => {
+      const newMessages = [...prev, { role, content: message }];
+      return newMessages;
+    });
+    if (callback) callback();
   };
 
   const handleAbstractChange = (event) => {
@@ -103,17 +91,28 @@ const App = () => {
     setShowSettings(!showSettings);
   };
 
+  const calculateTokens = (text) => {
+    // Simple token calculation: split by spaces and count the words
+    return text.split(/\s+/).length;
+  };
+
   const handleSubmit = async () => {
+    const tokenCountForInput = calculateTokens(abstract);
+    if (tokenCountForInput > MAX_TOKENS_PER_INPUT) {
+      setError(`Input exceeds the maximum allowed length of ${MAX_TOKENS_PER_INPUT} tokens.`);
+      return;
+    }
+
     if (tokenCount >= MAX_MONTHLY_TOKENS) {
       setError('Monthly token limit reached. Please try again next month.');
       return;
     }
-  
+
     setLoading(true);
     setShowInput(false);
     try {
-      const internalPrompt = { role: 'system', content: 'You are Reviewer #2, known for giving harsh and rude feedback. You are also known for being exceptionally critical and demanding. You are an angry and bitter scholar exacting revenge on your peers through overly critical anonymous rejections of papers you secretly wish you would have written.' };
-  
+      const internalPrompt = { role: 'system', content: 'You are Reviewer #2, known for giving harsh and rude feedback. You are also known for being exceptionally critical and demanding. You are an angry and bitter scholar exacting revenge on your peers through overly critical anonymous rejections of papers you secretly wish you would have written. Keep your response under 1000 tokens.' };
+
       const newMessages = [
         ...(isRebuttal ? messages : [internalPrompt, ...messages]),
         { role: 'user', content: abstract }
@@ -124,10 +123,10 @@ const App = () => {
         ...(isRebuttal ? messages : [...messages]),
         { role: 'user', content: abstract }
       ];
-  
+
       setMessages(displayMessages);
       setAbstract('');
-  
+
       const model = isRebuttal ? 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo' : 'meta-llama/Meta-Llama-3-8B-Instruct-Lite';
       const res = await together.chat.completions.create({
         messages: newMessages,
@@ -135,16 +134,16 @@ const App = () => {
         temperature: temperature,
         max_tokens: MAX_TOKENS_PER_RESPONSE,
       });
-  
+
       const responseText = res.choices[0]?.message?.content || "No response from reviewer";
       const tokensUsed = responseText.split(' ').length;
-  
+
       setTokenCount(prev => {
         const newTokenCount = prev + tokensUsed;
         localStorage.setItem('tokenCount', newTokenCount);
         return newTokenCount;
       });
-  
+
       if (!isRebuttal) {
         setSubmissionCount(prev => {
           const newSubmissionCount = prev + 1;
@@ -153,16 +152,15 @@ const App = () => {
         });
         setIsRebuttal(true); // Start rebuttal process
       }
-  
+
       setError('');
-      if (!isRebuttal) {
-        typeMessage(responseText, 'system', () => {
-          setIsRebuttal(true);
+      typeMessage(responseText, 'system', () => {
+        if (isRebuttal) {
+          handleEditorDecision(newMessages);
+        } else {
           setShowInput(true);
-        });
-      } else {
-        handleEditorDecision(newMessages);
-      }
+        }
+      });
     } catch (err) {
       console.error('Error fetching response:', err);
       setError('There was an error processing your request.');
@@ -171,7 +169,7 @@ const App = () => {
       setLoading(false);
     }
   };
-  
+
   const handleEditorDecision = async (newMessages) => {
     if (editorDecisionMade) return;
 
@@ -183,7 +181,7 @@ const App = () => {
       const review = systemMessages.find(m => m.content.startsWith('Reviewer'))?.content || 'N/A';
       const rebuttal = userMessages[userMessages.length - 1]?.content || 'N/A';
 
-      const editorPrompt = `As the Editor, evaluate whether the author's abstract should be published based on the following information: the author's original abstract, the reviewer's comments on the abstract, and the author's rebuttal to those comments. Please make your decision considering the merits of the abstract itself, and how well the rebuttal addresses the reviewer's critiques. Also, this is a prestigious journal, so remember to be very selective and be more inclined to reject rather than accept any abstract. You also know the Reviewer #2 personally and are likely to listen to their opinion, but make sure you don't mention this conflict of interest in your explanation since it's not allowed. Feel free to accept an abstract if you really feel compelled to for an outstanding abstract and/or rebuttal. Respond with either "ACCEPT" or "REJECT" followed by a brief explanation.\n\nAbstract: ${abstract}\nReview: ${review}\nRebuttal: ${rebuttal}`;
+      const editorPrompt = `As the Editor, evaluate whether the author's abstract should be published based on the following information: the author's original abstract, the reviewer's comments on the abstract, and the author's rebuttal to those comments. Please make your decision considering the merits of the abstract itself, and how well the rebuttal addresses the reviewer's critiques. Also, this is a prestigious journal, so remember to be very selective and be more inclined to reject rather than accept any abstract. You also know the Reviewer #2 personally and are likely to listen to their opinion, but make sure you don't mention this conflict of interest in your explanation since it's not allowed. Feel free to accept an abstract if you really feel compelled to for an outstanding abstract and/or rebuttal. Keep your response concise and do not go over 300 tokens. Respond with either "ACCEPT" or "REJECT" followed by a brief explanation.\n\nAbstract: ${abstract}\nReview: ${review}\nRebuttal: ${rebuttal}`;
 
       const res = await together.chat.completions.create({
         messages: [
@@ -296,6 +294,6 @@ const App = () => {
       </div>
     </div>
   );
-}  
+};
 
 export default App;
