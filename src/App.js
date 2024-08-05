@@ -6,6 +6,23 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCog, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import './App.css';
 import reviewer2 from './reviewer2.png';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, onValue, increment, update } from 'firebase/database';
+
+
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
 const App = () => {
   const [editorDecisionMade, setEditorDecisionMade] = useState(false);
@@ -22,16 +39,16 @@ const App = () => {
   const [rejectedCount, setRejectedCount] = useState(0);
   const [showInput, setShowInput] = useState(true);
   const [isRebuttal, setIsRebuttal] = useState(false);
-  const [triesLeft, setTriesLeft] = useState(10); // Initialize with the number of tries allowed
+  const [triesLeft, setTriesLeft] = useState(10);
   const [showSettings, setShowSettings] = useState(false);
   const chatWindowRef = useRef(null);
 
-  const MAX_MONTHLY_COST = 15; // $15
-  const COST_PER_MILLION_TOKENS = 0.88; // $0.88 per million tokens
-  const MAX_MONTHLY_TOKENS = (MAX_MONTHLY_COST / COST_PER_MILLION_TOKENS) * 1_000_000; // Convert to tokens
-  const MAX_TOKENS_PER_RESPONSE = 300; // Increased limit for longer responses
-  const MAX_TOKENS_PER_INPUT = 500; // Limit the user input to 500 tokens
-  const MAX_TRIES_PER_DAY = 10; // Maximum number of tries per day
+  const MAX_MONTHLY_COST = 15;
+  const COST_PER_MILLION_TOKENS = 0.88;
+  const MAX_MONTHLY_TOKENS = (MAX_MONTHLY_COST / COST_PER_MILLION_TOKENS) * 1_000_000;
+  const MAX_TOKENS_PER_RESPONSE = 300;
+  const MAX_TOKENS_PER_INPUT = 500;
+  const MAX_TRIES_PER_DAY = 10;
 
   const apiKey = process.env.REACT_APP_TOGETHER_API_KEY;
 
@@ -43,27 +60,15 @@ const App = () => {
 
   useEffect(() => {
     const storedTokenCount = parseInt(localStorage.getItem('tokenCount'), 10) || 0;
-    const storedSubmissionCount = parseInt(localStorage.getItem('submissionCount'), 10) || 0;
-    const storedAcceptedCount = parseInt(localStorage.getItem('acceptedCount'), 10) || 0;
-    const storedRejectedCount = parseInt(localStorage.getItem('rejectedCount'), 10) || 0;
     const storedTriesLeft = parseInt(localStorage.getItem('triesLeft'), 10) || MAX_TRIES_PER_DAY;
     const lastReset = localStorage.getItem('lastReset');
     const today = new Date().toDateString();
 
     if (lastReset !== today) {
-      setSubmissionCount(0);
-      setAcceptedCount(0);
-      setRejectedCount(0);
       setTriesLeft(MAX_TRIES_PER_DAY);
-      localStorage.setItem('submissionCount', 0);
-      localStorage.setItem('acceptedCount', 0);
-      localStorage.setItem('rejectedCount', 0);
-      localStorage.setItem('triesLeft', MAX_TRIES_PER_DAY);
+      localStorage.setItem('triesLeft', MAX_TRIES_PER_DAY.toString());
       localStorage.setItem('lastReset', today);
     } else {
-      setSubmissionCount(storedSubmissionCount);
-      setAcceptedCount(storedAcceptedCount);
-      setRejectedCount(storedRejectedCount);
       setTriesLeft(storedTriesLeft);
     }
 
@@ -76,11 +81,32 @@ const App = () => {
     }
   }, [messages]);
 
-  const typeMessage = (message, role, callback) => {
-    setMessages(prev => {
-      const newMessages = [...prev, { role, content: message }];
-      return newMessages;
+  useEffect(() => {
+    const submissionsRef = ref(db, 'submissionsCount');
+    const acceptedRef = ref(db, 'acceptedCount');
+    const rejectedRef = ref(db, 'rejectedCount');
+
+    const unsubSubmissions = onValue(submissionsRef, (snapshot) => {
+      setSubmissionCount(snapshot.val()?.count || 0);
     });
+
+    const unsubAccepted = onValue(acceptedRef, (snapshot) => {
+      setAcceptedCount(snapshot.val()?.count || 0);
+    });
+
+    const unsubRejected = onValue(rejectedRef, (snapshot) => {
+      setRejectedCount(snapshot.val()?.count || 0);
+    });
+
+    return () => {
+      unsubSubmissions();
+      unsubAccepted();
+      unsubRejected();
+    };
+  }, []);
+
+  const typeMessage = (message, role, callback) => {
+    setMessages(prev => [...prev, { role, content: message }]);
     if (callback) callback();
   };
 
@@ -97,7 +123,6 @@ const App = () => {
   };
 
   const calculateTokens = (text) => {
-    // Simple token calculation: split by spaces and count the words
     return text.split(/\s+/).length;
   };
 
@@ -128,7 +153,6 @@ const App = () => {
         { role: 'user', content: abstract }
       ];
       
-      // Filter out the internal prompt for display purposes
       const displayMessages = [
         ...(isRebuttal ? messages : [...messages]),
         { role: 'user', content: abstract }
@@ -140,7 +164,7 @@ const App = () => {
       if (!isRebuttal) {
         const res = await together.chat.completions.create({
           messages: newMessages,
-          model: 'meta-llama/Meta-Llama-3-8B-Instruct-Lite',
+          model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
           temperature: temperature,
           max_tokens: MAX_TOKENS_PER_RESPONSE,
         });
@@ -150,19 +174,16 @@ const App = () => {
 
         setTokenCount(prev => {
           const newTokenCount = prev + tokensUsed;
-          localStorage.setItem('tokenCount', newTokenCount);
+          localStorage.setItem('tokenCount', newTokenCount.toString());
           return newTokenCount;
         });
 
-        setSubmissionCount(prev => {
-          const newSubmissionCount = prev + 1;
-          localStorage.setItem('submissionCount', newSubmissionCount);
-          return newSubmissionCount;
-        });
+        const submissionsRef = ref(db, 'submissionsCount');
+        update(submissionsRef, { count: increment(1) });
 
         setTriesLeft(prev => {
           const newTriesLeft = prev - 1;
-          localStorage.setItem('triesLeft', newTriesLeft);
+          localStorage.setItem('triesLeft', newTriesLeft.toString());
           return newTriesLeft;
         });
 
@@ -173,8 +194,8 @@ const App = () => {
         });
       } else {
         setTriesLeft(prev => {
-          const newTriesLeft = prev - 1;
-          localStorage.setItem('triesLeft', newTriesLeft);
+          const newTriesLeft = prev - 0; // ikki's brilliant idea to not make the counter go down on rebuttal submission
+          localStorage.setItem('triesLeft', newTriesLeft.toString());
           return newTriesLeft;
         });
 
@@ -207,7 +228,7 @@ const App = () => {
         messages: [
           { role: 'user', content: editorPrompt }
         ],
-        model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+        model: 'meta-llama/Meta-Llama-3-8B-Instruct-Lite',
         temperature: temperature,
         max_tokens: MAX_TOKENS_PER_RESPONSE,
       });
@@ -225,17 +246,11 @@ const App = () => {
       const isAccepted = decision.toLowerCase().includes('accept');
 
       if (isAccepted) {
-        setAcceptedCount(prev => {
-          const newCount = prev + 1;
-          localStorage.setItem('acceptedCount', newCount);
-          return newCount;
-        });
+        const acceptedRef = ref(db, 'acceptedCount');
+        update(acceptedRef, { count: increment(1) });
       } else {
-        setRejectedCount(prev => {
-          const newCount = prev + 1;
-          localStorage.setItem('rejectedCount', newCount);
-          return newCount;
-        });
+        const rejectedRef = ref(db, 'rejectedCount');
+        update(rejectedRef, { count: increment(1) });
       }
 
       typeMessage(`Editor: ${decision}`, 'system');
@@ -247,7 +262,6 @@ const App = () => {
       setLoading(false);
       setShowInput(false);
       setIsRebuttal(false);
-      setTriesLeft(prev => prev - 1); // Decrement tries left
     }
   };
 
@@ -285,7 +299,6 @@ const App = () => {
           ))}
           {showInput && (
             <div className="input-line">
-              <span className="cursor">> </span>
               <textarea
                 value={abstract}
                 onChange={handleAbstractChange}
@@ -309,17 +322,26 @@ const App = () => {
       )}
       {error && <p className="error">{error}</p>}
       <p className="disclaimer">
-        Disclaimer: This application does not store any user data or submitted abstracts. 
-        <br />
-        Powered by Meta-Llama-3.1-70B-Instruct-Turbo and Meta-Llama-3-8B-Instruct-Lite.
-      </p>
-      <div className="counter">
-        <div>{submissionCount} Abstracts read</div>
-        <div className="decision-counts">
-          <div><ThumbsUp size={18} /> {acceptedCount}</div>
-          <div><ThumbsDown size={18} /> {rejectedCount}</div>
-        </div>
+      Disclaimer: This application does not store any user data or submitted abstracts. 
+      <br />
+      <br />
+      Powered by Meta-Llama-3.1-70B-Instruct-Turbo and Meta-Llama-3-8B-Instruct-Lite.
+      <br />
+      <br />
+      Support helps fund the project c:
+      <br />
+      <br />
+      <br />
+      <br />
+      <a href="https://github.com/jaydahhei/reviewer2">Github♥</a>
+    </p>
+    <div className="counter">
+      <div>{submissionCount} Abstracts read</div>
+      <div className="decision-counts">
+        <div><ThumbsUp size={18} /> {acceptedCount}</div>
+        <div><ThumbsDown size={18} /> {rejectedCount}</div>
       </div>
+    </div>
     </div>
   );
 };
