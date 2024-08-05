@@ -3,7 +3,7 @@ import Together from 'together-ai';
 import ClipLoader from 'react-spinners/ClipLoader';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { faCog, faInfoCircle, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
 import './App.css';
 import reviewer2 from './reviewer2.png';
 import { initializeApp } from 'firebase/app';
@@ -338,8 +338,8 @@ const App = () => {
     <div className="counter">
       <div>{submissionCount} Abstracts read</div>
       <div className="decision-counts">
-        <div><ThumbsUp size={18} /> {acceptedCount}</div>
-        <div><ThumbsDown size={18} /> {rejectedCount}</div>
+        <div><FontAwesomeIcon icon={faCheck} size={18} /> {acceptedCount}</div>
+        <div><FontAwesomeIcon icon={faTimes} size={18} /> {rejectedCount}</div>
       </div>
     </div>
     </div>
