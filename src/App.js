@@ -3,7 +3,7 @@ import Together from 'together-ai';
 import ClipLoader from 'react-spinners/ClipLoader';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog } from '@fortawesome/free-solid-svg-icons';
+import { faCog, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import './App.css';
 import reviewer2 from './reviewer2.png';
 
@@ -22,7 +22,7 @@ const App = () => {
   const [rejectedCount, setRejectedCount] = useState(0);
   const [showInput, setShowInput] = useState(true);
   const [isRebuttal, setIsRebuttal] = useState(false);
-  const [triesLeft, setTriesLeft] = useState(3);
+  const [triesLeft, setTriesLeft] = useState(10); // Initialize with the number of tries allowed
   const [showSettings, setShowSettings] = useState(false);
   const chatWindowRef = useRef(null);
 
@@ -31,6 +31,7 @@ const App = () => {
   const MAX_MONTHLY_TOKENS = (MAX_MONTHLY_COST / COST_PER_MILLION_TOKENS) * 1_000_000; // Convert to tokens
   const MAX_TOKENS_PER_RESPONSE = 300; // Increased limit for longer responses
   const MAX_TOKENS_PER_INPUT = 500; // Limit the user input to 500 tokens
+  const MAX_TRIES_PER_DAY = 10; // Maximum number of tries per day
 
   const apiKey = process.env.REACT_APP_TOGETHER_API_KEY;
 
@@ -45,6 +46,7 @@ const App = () => {
     const storedSubmissionCount = parseInt(localStorage.getItem('submissionCount'), 10) || 0;
     const storedAcceptedCount = parseInt(localStorage.getItem('acceptedCount'), 10) || 0;
     const storedRejectedCount = parseInt(localStorage.getItem('rejectedCount'), 10) || 0;
+    const storedTriesLeft = parseInt(localStorage.getItem('triesLeft'), 10) || MAX_TRIES_PER_DAY;
     const lastReset = localStorage.getItem('lastReset');
     const today = new Date().toDateString();
 
@@ -52,14 +54,17 @@ const App = () => {
       setSubmissionCount(0);
       setAcceptedCount(0);
       setRejectedCount(0);
+      setTriesLeft(MAX_TRIES_PER_DAY);
       localStorage.setItem('submissionCount', 0);
       localStorage.setItem('acceptedCount', 0);
       localStorage.setItem('rejectedCount', 0);
+      localStorage.setItem('triesLeft', MAX_TRIES_PER_DAY);
       localStorage.setItem('lastReset', today);
     } else {
       setSubmissionCount(storedSubmissionCount);
       setAcceptedCount(storedAcceptedCount);
       setRejectedCount(storedRejectedCount);
+      setTriesLeft(storedTriesLeft);
     }
 
     setTokenCount(storedTokenCount);
@@ -97,6 +102,11 @@ const App = () => {
   };
 
   const handleSubmit = async () => {
+    if (triesLeft <= 0) {
+      setError('You have reached the maximum number of tries for today.');
+      return;
+    }
+
     const tokenCountForInput = calculateTokens(abstract);
     if (tokenCountForInput > MAX_TOKENS_PER_INPUT) {
       setError(`Input exceeds the maximum allowed length of ${MAX_TOKENS_PER_INPUT} tokens.`);
@@ -152,6 +162,12 @@ const App = () => {
         });
         setIsRebuttal(true); // Start rebuttal process
       }
+
+      setTriesLeft(prev => {
+        const newTriesLeft = prev - 1;
+        localStorage.setItem('triesLeft', newTriesLeft);
+        return newTriesLeft;
+      });
 
       setError('');
       typeMessage(responseText, 'system', () => {
@@ -249,6 +265,10 @@ const App = () => {
             />
           </div>
         )}
+      </div>
+      <div className="tries-left">
+        <FontAwesomeIcon icon={faInfoCircle} size="2x" />
+        <span>{triesLeft} submissions left today</span>
       </div>
       <h1>Chat with Reviewer #2</h1>
       <div className="reviewer-container">

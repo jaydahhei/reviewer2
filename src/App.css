@@ -138,6 +138,20 @@ textarea {
   overflow: hidden;
 }
 
+
+.tries-left {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.tries-left span {
+  margin-left: 5px;
+}
+
 label {
   display: block;
   margin-top: 20px;
