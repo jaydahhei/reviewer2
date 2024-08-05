@@ -137,46 +137,50 @@ const App = () => {
       setMessages(displayMessages);
       setAbstract('');
 
-      const model = isRebuttal ? 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo' : 'meta-llama/Meta-Llama-3-8B-Instruct-Lite';
-      const res = await together.chat.completions.create({
-        messages: newMessages,
-        model: model,
-        temperature: temperature,
-        max_tokens: MAX_TOKENS_PER_RESPONSE,
-      });
-
-      const responseText = res.choices[0]?.message?.content || "No response from reviewer";
-      const tokensUsed = responseText.split(' ').length;
-
-      setTokenCount(prev => {
-        const newTokenCount = prev + tokensUsed;
-        localStorage.setItem('tokenCount', newTokenCount);
-        return newTokenCount;
-      });
-
       if (!isRebuttal) {
+        const res = await together.chat.completions.create({
+          messages: newMessages,
+          model: 'meta-llama/Meta-Llama-3-8B-Instruct-Lite',
+          temperature: temperature,
+          max_tokens: MAX_TOKENS_PER_RESPONSE,
+        });
+
+        const responseText = res.choices[0]?.message?.content || "No response from reviewer";
+        const tokensUsed = responseText.split(' ').length;
+
+        setTokenCount(prev => {
+          const newTokenCount = prev + tokensUsed;
+          localStorage.setItem('tokenCount', newTokenCount);
+          return newTokenCount;
+        });
+
         setSubmissionCount(prev => {
           const newSubmissionCount = prev + 1;
           localStorage.setItem('submissionCount', newSubmissionCount);
           return newSubmissionCount;
         });
-        setIsRebuttal(true); // Start rebuttal process
-      }
 
-      setTriesLeft(prev => {
-        const newTriesLeft = prev - 1;
-        localStorage.setItem('triesLeft', newTriesLeft);
-        return newTriesLeft;
-      });
+        setTriesLeft(prev => {
+          const newTriesLeft = prev - 1;
+          localStorage.setItem('triesLeft', newTriesLeft);
+          return newTriesLeft;
+        });
 
-      setError('');
-      typeMessage(responseText, 'system', () => {
-        if (isRebuttal) {
-          handleEditorDecision(newMessages);
-        } else {
+        setError('');
+        typeMessage(responseText, 'system', () => {
+          setIsRebuttal(true);
           setShowInput(true);
-        }
-      });
+        });
+      } else {
+        setTriesLeft(prev => {
+          const newTriesLeft = prev - 1;
+          localStorage.setItem('triesLeft', newTriesLeft);
+          return newTriesLeft;
+        });
+
+        setError('');
+        handleEditorDecision(newMessages);
+      }
     } catch (err) {
       console.error('Error fetching response:', err);
       setError('There was an error processing your request.');
@@ -268,7 +272,7 @@ const App = () => {
       </div>
       <div className="tries-left">
         <FontAwesomeIcon icon={faInfoCircle} size="2x" />
-        <span>{triesLeft} submissions left today</span>
+        <span>{triesLeft} tries left</span>
       </div>
       <h1>Chat with Reviewer #2</h1>
       <div className="reviewer-container">
@@ -304,7 +308,11 @@ const App = () => {
         </div>
       )}
       {error && <p className="error">{error}</p>}
-      <p className="disclaimer">Disclaimer: This application does not store any user data or submitted abstracts.</p>
+      <p className="disclaimer">
+        Disclaimer: This application does not store any user data or submitted abstracts. 
+        <br />
+        Powered by Meta-Llama-3.1-70B-Instruct-Turbo and Meta-Llama-3-8B-Instruct-Lite.
+      </p>
       <div className="counter">
         <div>{submissionCount} Abstracts read</div>
         <div className="decision-counts">
