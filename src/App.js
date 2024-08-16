@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Together from 'together-ai';
 import ClipLoader from 'react-spinners/ClipLoader';
-import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCog, faInfoCircle, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
 import './App.css';
@@ -17,8 +16,7 @@ const firebaseConfig = {
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
